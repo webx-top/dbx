@@ -9,6 +9,7 @@ import (
 
 	"github.com/admpub/confl"
 	"github.com/admpub/regexp2"
+	"github.com/webx-top/echo"
 
 	"github.com/webx-top/com"
 	"github.com/webx-top/db/lib/factory"
@@ -151,16 +152,24 @@ func main() {
 		replaceMap["beforeDelete"] = ""
 		replaceMap["afterInsert"] = ""
 
-		importTime := false
+		var importTime bool
+		var (
+			createdAtStructFieldNames []echo.KV
+			updatedAtStructFieldNames []echo.KV
+			beforeInsert string
+		)
 		if cfg.AutoTimeFields != nil {
-			_fieldNames, ok := cfg.AutoTimeFields.Insert[`*`]
+			createdAtFieldNames, ok := cfg.AutoTimeFields.Insert[`*`]
 			if !ok {
-				_fieldNames, ok = cfg.AutoTimeFields.Insert[tableName]
+				createdAtFieldNames, _ = cfg.AutoTimeFields.Insert[tableName]
 			}
-			if ok && len(_fieldNames) > 0 {
-				beforeInsert := ``
-				newLine := ``
-				for _, _fieldName := range _fieldNames {
+			updatedAtFieldNames, ok := cfg.AutoTimeFields.Update[`*`]
+			if !ok {
+				updatedAtFieldNames, _ = cfg.AutoTimeFields.Update[tableName]
+			}
+			if len(createdAtFieldNames) > 0 {
+				var newLine string
+				for _, _fieldName := range createdAtFieldNames {
 					fieldInf, ok := fields[_fieldName]
 					if !ok {
 						continue
@@ -171,6 +180,14 @@ func main() {
 					}
 					switch fieldInf.GoType {
 					case `uint`, `int`, `uint32`, `int32`, `int64`, `uint64`:
+						createdAtStructFieldNames = append(createdAtStructFieldNames, echo.KV{
+						K:fieldInf.GoName,
+						V:convt,
+						H:echo.H{
+							`fieldName`: _fieldName,
+							`fieldValue`: `time.Now().Unix()`,
+						},
+						})
 						beforeInsert += newLine + `a.` + fieldInf.GoName + ` = ` + convt + `(time.Now().Unix())`
 						newLine = "\n\t"
 						importTime = true
@@ -178,9 +195,7 @@ func main() {
 						//TODO
 					}
 				}
-				afterInsert := ``
-				newLine2 := ``
-				newTab2 := ``
+				var afterInsert, newLine2, newTab2 string
 				for _, fieldInf := range fields {
 					if fieldInf.AutoIncrement && fieldInf.PrimaryKey {
 						beforeInsert += newLine + `a.` + fieldInf.GoName + ` = 0`
@@ -210,15 +225,11 @@ func main() {
 				replaceMap["afterInsert"] = afterInsert
 				replaceMap["beforeInsert"] = beforeInsert
 			}
-			_fieldNames, ok = cfg.AutoTimeFields.Update[`*`]
-			if !ok {
-				_fieldNames, ok = cfg.AutoTimeFields.Update[tableName]
-			}
-			if ok && len(_fieldNames) > 0 {
+			if len(updatedAtFieldNames) > 0 {
 				beforeUpdate := ``
 				setUpdatedAt := ``
 				newLine := ``
-				for _, _fieldName := range _fieldNames {
+				for _, _fieldName := range updatedAtFieldNames {
 					fieldInf, ok := fields[_fieldName]
 					if !ok {
 						continue
@@ -229,6 +240,14 @@ func main() {
 					}
 					switch fieldInf.GoType {
 					case `uint`, `int`, `uint32`, `int32`, `int64`, `uint64`:
+						updatedAtStructFieldNames = append(updatedAtStructFieldNames, echo.KV{
+							K:fieldInf.GoName,
+							V:convt,
+							H:echo.H{
+								`fieldName`: _fieldName,
+								`fieldValue`: `time.Now().Unix()`,
+							},
+						})
 						beforeUpdate += newLine + `a.` + fieldInf.GoName + ` = ` + convt + `(time.Now().Unix())`
 						setUpdatedAt += newLine + `kvset["` + _fieldName + `"] = ` + convt + `(time.Now().Unix())`
 						newLine = "\n\t"

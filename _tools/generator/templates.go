@@ -1,7 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+
+	"github.com/webx-top/echo"
 )
 
 type structField struct {
@@ -19,6 +22,20 @@ func (f *structField) String() string {
 }
 
 var memberTemplate = "\t%v\t%v\t`db:\"%v\" bson:\"%v\" comment:\"%v\" json:\"%v\" xml:\"%v\"`"
+
+type dbSchemaData struct {
+	PackageName     string
+	ImportPackages  []string
+	StructName      string
+	StructComment   string
+	StructAttributes []string
+	CreatedAtField  sql.NullString
+	UpdatedAtField  sql.NullString
+	DeletedAtField  sql.NullString
+	TableName string
+	Table2StructFields echo.KVData
+}
+
 var replaces = &map[string]string{
 	"packageName":   "",
 	"imports":       "",
